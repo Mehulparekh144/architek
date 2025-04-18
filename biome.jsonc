@@ -11,12 +11,16 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
+			"complexity": {
+				"noForEach": "off"
+			},
 			"nursery": {
 				"recommended": true,
 				"noIrregularWhitespace": "error"
 			},
 			"recommended": true,
 			"suspicious": {
+				"noExplicitAny": "off",
 				"noArrayIndexKey": "off",
 				"useAwait": "error"
 			},
