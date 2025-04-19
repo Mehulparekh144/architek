@@ -1,4 +1,3 @@
-import { Tldraw } from "tldraw";
 import "tldraw/tldraw.css";
 import { Whiteboard } from "./whiteboard";
 import { Input } from "@/components/ui/input";

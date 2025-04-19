@@ -1,23 +1,10 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import React, { useEffect } from "react";
-import {
-	Tldraw,
-	useEditor,
-	type TLRecord,
-	type TLShape,
-} from "tldraw";
+import { useEffect, useRef } from "react";
+import { Tldraw, useEditor, type TLRecord, type TLShape } from "tldraw";
 import "tldraw/tldraw.css";
-
-interface TextShapeData {
-	id: string;
-	type: string;
-	text: string;
-	position: {
-		x: number;
-		y: number;
-	};
-}
+import { useWhiteboard } from "@/hooks/use-whiteboard";
+import { diffWordsWithSpace } from "diff";
 
 export const Whiteboard = () => {
 	return (
@@ -38,46 +25,72 @@ export const Whiteboard = () => {
 
 const TLDrawContext = () => {
 	const editor = useEditor();
-	const [shapes, setShapes] = React.useState<TextShapeData[]>([]);
+	const { shapes, setShapes } = useWhiteboard();
+	const previousTextRef = useRef<string>("");
+	const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
 		if (!editor) return;
 
 		const handleChange = () => {
-			const allShapes = editor.store
-				.allRecords()
-				.filter((record: TLRecord) => record.typeName === "shape") as TLShape[];
+			// Clear the previous timeout if it exists
+			if (debounceTimeoutRef.current) {
+				clearTimeout(debounceTimeoutRef.current);
+			}
 
-			const shapesWithText = allShapes
-				.filter(
-					(shape: any) =>
-						shape.props?.richText?.content?.filter(
-							(c: any) => c?.content?.length > 0,
-						).length > 0,
-				)
-				?.map((shape: any) => {
-					const text = shape.props.richText.content
-						.map((c: any) => c.content.map((c: any) => c.text).join(""))
-						.join(" ");
+			// Set a new timeout
+			debounceTimeoutRef.current = setTimeout(() => {
+				const allShapes = editor.store
+					.allRecords()
+					.filter(
+						(record: TLRecord) => record.typeName === "shape",
+					) as TLShape[];
 
-					return {
-						id: shape.id,
-						type: shape.type,
-						text,
-						position: {
-							x: shape.x,
-							y: shape.y,
-						},
-					};
-				});
+				const shapesWithText = allShapes
+					.filter(
+						(shape: any) =>
+							shape.props?.richText?.content?.filter(
+								(c: any) => c?.content?.length > 0,
+							).length > 0,
+					)
+					?.map((shape: any) => {
+						const text = shape.props.richText.content
+							.map((c: any) => c?.content?.map((c: any) => c.text).join(""))
+							.join(" ");
 
-			setShapes(shapesWithText);
+						return {
+							id: shape.id,
+							type: shape.type,
+							text,
+							position: {
+								x: shape.x,
+								y: shape.y,
+							},
+						};
+					});
+
+				const currentText = shapesWithText.map((shape) => shape.text).join(" ");
+				const previousText = previousTextRef.current;
+
+				const changes = getDiff(currentText, previousText);
+				if (changes) {
+					console.log("changes", changes);
+				}
+
+				previousTextRef.current = currentText;
+				setShapes(shapesWithText);
+			}, 700);
 		};
 
 		const unsubscribe = editor.store.listen(handleChange);
 
-		return () => unsubscribe();
-	}, [editor]);
+		return () => {
+			unsubscribe();
+			if (debounceTimeoutRef.current) {
+				clearTimeout(debounceTimeoutRef.current);
+			}
+		};
+	}, [editor, setShapes]); // Add setShapes to dependency array if it's stable
 
 	return (
 		<Button
@@ -89,4 +102,24 @@ const TLDrawContext = () => {
 			Get Shapes & Content
 		</Button>
 	);
+};
+
+const getDiff = (currentText: string, previousText: string) => {
+	console.log("currentText:", currentText);
+	console.log("previousText:", previousText);
+
+	const diffResult = diffWordsWithSpace(previousText, currentText, {
+		ignoreCase: true,
+		ignoreWhitespace: false,
+	});
+
+	const changes = diffResult
+		.filter((part) => part.added || part.removed)
+		.map((part) => {
+			const prefix = part.added ? "Added: " : part.removed ? "Removed: " : "";
+			return prefix + part.value.trim();
+		})
+		.join("\n");
+
+	return changes;
 };
