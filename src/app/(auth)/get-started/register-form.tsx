@@ -117,7 +117,7 @@ export const RegisterForm = () => {
 								</FormItem>
 							)}
 						/>
-						<LoadingButton type="submit" loading={loading}>
+						<LoadingButton type="submit" className="w-full" loading={loading}>
 							Register
 						</LoadingButton>
 					</form>

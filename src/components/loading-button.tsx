@@ -9,17 +9,26 @@ interface LoadingButtonProps
 	extends React.ComponentProps<"button">,
 		VariantProps<typeof buttonVariants> {
 	loading?: boolean;
+	hideChildren?: boolean;
 }
 
 export const LoadingButton = ({
 	children,
 	className,
 	loading,
+	hideChildren = false,
 	...props
 }: LoadingButtonProps) => {
 	return (
 		<Button disabled={loading} className={cn(className)} {...props}>
-			{loading ? <Loader2 className="size-4 animate-spin" /> : children}
+			{loading ? (
+				<>
+					<Loader2 className="size-4 animate-spin" />
+					{hideChildren && children}
+				</>
+			) : (
+				children
+			)}
 		</Button>
 	);
 };
