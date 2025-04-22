@@ -48,10 +48,8 @@ function generateStreamResponse(userMessage: string | null): ReadableStream<Uint
   });
 }
 
-// Handler for POST requests (reads from JSON body)
 export async function POST(req: NextRequest) {
   try {
-    // Ensure req has a body and it's not null before calling json()
     if (!req.body) {
       return NextResponse.json({ error: "Request body is missing" }, { status: 400 });
     }
@@ -59,17 +57,15 @@ export async function POST(req: NextRequest) {
     const stream = generateStreamResponse(userMessage);
     return new Response(stream, { headers });
   } catch (error) {
-    // Handle potential JSON parsing errors or other errors
     console.error("Error processing POST request:", error);
     const message = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json({ error: "Failed to process request", details: message }, { status: 500 });
   }
 }
 
-// Handler for GET requests (reads from URL query parameters)
 export function GET(req: NextRequest) {
   const url = new URL(req.url);
-  const userMessage = url.searchParams.get("userMessage"); // Read from query param
+  const userMessage = url.searchParams.get("userMessage"); 
 
   const stream = generateStreamResponse(userMessage);
   return new Response(stream, { headers });

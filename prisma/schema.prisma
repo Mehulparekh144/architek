@@ -29,6 +29,7 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
+  bookings      Booking[]
 
   @@unique([email])
   @@map("user")
@@ -77,4 +78,25 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  topic          String
+  additionalInfo String?
+  difficulty     Difficulty
+
+  @@map("booking")
 }

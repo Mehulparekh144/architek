@@ -33,12 +33,10 @@ const TLDrawContext = () => {
 		if (!editor) return;
 
 		const handleChange = () => {
-			// Clear the previous timeout if it exists
 			if (debounceTimeoutRef.current) {
 				clearTimeout(debounceTimeoutRef.current);
 			}
 
-			// Set a new timeout
 			debounceTimeoutRef.current = setTimeout(() => {
 				const allShapes = editor.store
 					.allRecords()
@@ -74,6 +72,7 @@ const TLDrawContext = () => {
 
 				const changes = getDiff(currentText, previousText);
 				if (changes) {
+					//TODO - Send changes to the server
 					console.log("changes", changes);
 				}
 
