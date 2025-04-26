@@ -14,8 +14,7 @@ export const env = createEnv({
 		BETTER_AUTH_SECRET: z.string(),
 		GOOGLE_CLIENT_ID: z.string(),
 		GOOGLE_CLIENT_SECRET: z.string(),
-		REDIS_URL: z.string(),
-		REDIS_TOKEN: z.string(),
+		OPENROUTER_API_KEY: z.string(),
 	},
 
 	/**
@@ -25,6 +24,8 @@ export const env = createEnv({
 	 */
 	client: {
 		NEXT_PUBLIC_BETTER_AUTH_URL: z.string().url(),
+		NEXT_PUBLIC_REDIS_URL: z.string(),
+		NEXT_PUBLIC_REDIS_TOKEN: z.string(),
 
 		// NEXT_PUBLIC_CLIENTVAR: z.string(),
 	},
@@ -40,8 +41,9 @@ export const env = createEnv({
 		NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
 		GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
 		GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-		REDIS_URL: process.env.REDIS_URL,
-		REDIS_TOKEN: process.env.REDIS_TOKEN,
+		NEXT_PUBLIC_REDIS_URL: process.env.NEXT_PUBLIC_REDIS_URL,
+		NEXT_PUBLIC_REDIS_TOKEN: process.env.NEXT_PUBLIC_REDIS_TOKEN,
+		OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
 		// NEXT_PUBLIC_CLIENTVAR	: process.env.NEXT_PUBLIC_CLIENTVAR,
 	},
 	/**

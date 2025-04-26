@@ -1,12 +1,13 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Tldraw, useEditor, type TLRecord, type TLShape } from "tldraw";
 import "tldraw/tldraw.css";
-import { useWhiteboard } from "@/hooks/use-whiteboard";
 import { diffWordsWithSpace } from "diff";
+import { redis } from "@/lib/redis";
+import type { Shape } from "@/types/redisData";
 
-export const Whiteboard = () => {
+export const Whiteboard = ({ bookingId }: { bookingId: string }) => {
 	return (
 		<div className="w-full h-full">
 			<Tldraw
@@ -15,19 +16,29 @@ export const Whiteboard = () => {
 					MenuPanel: null,
 					ZoomMenu: null,
 				}}
-				persistenceKey="tldraw-whiteboard"
+				persistenceKey={`tldraw-whiteboard-${bookingId}`}
 			>
-				<TLDrawContext />
+				<TLDrawContext bookingId={bookingId} />
 			</Tldraw>
 		</div>
 	);
 };
 
-const TLDrawContext = () => {
+const TLDrawContext = ({ bookingId }: { bookingId: string }) => {
 	const editor = useEditor();
-	const { shapes, setShapes } = useWhiteboard();
 	const previousTextRef = useRef<string>("");
 	const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const [shapes, setShapes] = useState<Shape[]>([]);
+
+	useEffect(() => {
+		const fetchShapes = async () => {
+			const data = (await redis.get(
+				`whiteboard-shapes-${bookingId}`,
+			)) as Shape[];
+			setShapes(data);
+		};
+		fetchShapes();
+	}, [bookingId]);
 
 	useEffect(() => {
 		if (!editor) return;
@@ -77,7 +88,7 @@ const TLDrawContext = () => {
 				}
 
 				previousTextRef.current = currentText;
-				setShapes(shapesWithText);
+				redis.set(`whiteboard-shapes-${bookingId}`, shapesWithText);
 			}, 700);
 		};
 
@@ -89,7 +100,7 @@ const TLDrawContext = () => {
 				clearTimeout(debounceTimeoutRef.current);
 			}
 		};
-	}, [editor, setShapes]); // Add setShapes to dependency array if it's stable
+	}, [editor, bookingId]);
 
 	return (
 		<Button

@@ -35,7 +35,7 @@ export default async function DashboardPage() {
 			<Suspense fallback={<div>Loading...</div>}>
 				<div className="max-w-2xl flex gap-3 items-center flex-wrap">
 					{bookings.map((booking) => (
-						<div key={booking.id} className="w-full h-full">
+						<div key={booking.id} className="w-full h-max">
 							<Card>
 								<CardHeader>
 									<CardTitle className="flex items-center justify-between">
@@ -67,9 +67,6 @@ export default async function DashboardPage() {
 			>
 				<Button type="submit">Logout</Button>
 			</form>
-			<Button variant={"link"} asChild>
-				<Link href="/draw">Draw</Link>
-			</Button>
 			<BookingDialog />
 		</div>
 	);

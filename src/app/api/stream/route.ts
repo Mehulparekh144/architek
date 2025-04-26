@@ -1,17 +1,25 @@
+import { redis } from "@/lib/redis";
+import { db } from "@/server/db";
+import type { Message } from "@/types/redisData";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const headers = {
-  'Content-Type': 'text/event-stream', // MIME type for Server-Sent Events
+  'Content-Type': 'text/event-stream',
   'Cache-Control': 'no-cache',
   'Connection': 'keep-alive',
 };
 
 const encoder = new TextEncoder();
 
-// Helper function for streaming logic
-function generateStreamResponse(userMessage: string | null): ReadableStream<Uint8Array> {
-  if (!userMessage) {
+async function generateStreamResponse(userMessage: string | null, bookingId: string): Promise<ReadableStream<Uint8Array>> {
+  const booking = await db.booking.findUnique({
+    where: {
+      id: bookingId,
+    },
+  });
+
+  if (!userMessage || !booking) {
     return new ReadableStream({
       start(controller) {
         const errorData = { type: 'error', message: 'Missing userMessage' };
@@ -20,6 +28,9 @@ function generateStreamResponse(userMessage: string | null): ReadableStream<Uint
       }
     });
   }
+
+  const redisMessages = (await redis.get(`whiteboard-messages-${bookingId}`)) as Message[];
+  const messages = [...redisMessages, { type: 'sent', message: userMessage, thinking: false, id: crypto.randomUUID() }];
 
   return new ReadableStream({
     async start(controller: ReadableStreamController<Uint8Array>) {
@@ -32,7 +43,7 @@ function generateStreamResponse(userMessage: string | null): ReadableStream<Uint
       // TODO : Call the LLM
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const response = `Hello, how can I help you today? ${userMessage}`;
+      const response = `Hello, how can I help you today with booking ${bookingId}? ${messages[messages.length - 1]?.message}`;
       let currentResponse = '';
 
       for (const char of response) {
@@ -53,8 +64,8 @@ export async function POST(req: NextRequest) {
     if (!req.body) {
       return NextResponse.json({ error: "Request body is missing" }, { status: 400 });
     }
-    const { userMessage } = await req.json();
-    const stream = generateStreamResponse(userMessage);
+    const { userMessage, bookingId } = await req.json();
+    const stream = await generateStreamResponse(userMessage, bookingId);
     return new Response(stream, { headers });
   } catch (error) {
     console.error("Error processing POST request:", error);
@@ -63,10 +74,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export function GET(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const url = new URL(req.url);
-  const userMessage = url.searchParams.get("userMessage"); 
+  const userMessage = url.searchParams.get("userMessage");
+  const bookingId = url.searchParams.get("bookingId");
 
-  const stream = generateStreamResponse(userMessage);
+  if (!bookingId) {
+    return NextResponse.json({ error: "Missing bookingId" }, { status: 400 });
+  }
+
+  const stream = await generateStreamResponse(userMessage, bookingId);
   return new Response(stream, { headers });
 }

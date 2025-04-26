@@ -3,7 +3,6 @@ import { Whiteboard } from "./whiteboard";
 import { Chat } from "./chat";
 import { db } from "@/server/db";
 import { redirect } from "next/navigation";
-import { useWhiteboard } from "@/hooks/use-whiteboard";
 
 export default async function DrawPage({
 	params,
@@ -20,17 +19,10 @@ export default async function DrawPage({
 		redirect("/404");
 	}
 
-	if (useWhiteboard.persist.getOptions().name !== `whiteboard-${id}`) {
-		useWhiteboard.persist.setOptions({
-			name: `whiteboard-${id}`,
-		});
-		useWhiteboard.persist.rehydrate();
-	}
-
 	return (
 		<section className="h-screen w-screen flex">
-			<Whiteboard />
-			<Chat />
+			<Whiteboard bookingId={id} />
+			<Chat bookingId={id} />
 		</section>
 	);
 }
