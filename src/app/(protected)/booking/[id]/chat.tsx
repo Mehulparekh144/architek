@@ -5,22 +5,44 @@ import {
 	ChatBubbleAvatar,
 	ChatBubbleMessage,
 } from "@/components/ui/chat-bubble";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoadingButton } from "@/components/loading-button";
 import { Textarea } from "@/components/ui/textarea";
 import { redis } from "@/lib/redis";
 import type { Message } from "@/types/redisData";
+import type { Booking } from "@prisma/client";
 
-export const Chat = ({ bookingId }: { bookingId: string }) => {
+export const Chat = ({ booking }: { booking: Booking }) => {
 	const [messages, setMessages] = useState<Message[]>([]);
-	const [message, setMessage] = useState<string>("");
+	const [message, setMessage] = useState<string>(
+		`Hi, You are here to interview me for this question : ${booking.topic}. Please keep in mind these additional areas where I want to focus on : ${booking.additionalInfo}`,
+	);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
+	const scrollRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (scrollRef.current) {
+			scrollRef.current.scrollTo({
+				top: scrollRef.current.scrollHeight,
+				behavior: "smooth",
+			});
+		}
+	}, []);
+
+	useEffect(() => {
+		if (scrollRef.current && messages.length > 0) {
+			scrollRef.current.scrollTo({
+				top: scrollRef.current.scrollHeight,
+				behavior: "smooth",
+			});
+		}
+	}, [messages]);
 
 	useEffect(() => {
 		const fetchMessages = async () => {
 			try {
 				const data = (await redis.get(
-					`whiteboard-messages-${bookingId}`,
+					`whiteboard-messages-${booking.id}`,
 				)) as Message[];
 				if (data) {
 					setMessages(data);
@@ -31,11 +53,11 @@ export const Chat = ({ bookingId }: { bookingId: string }) => {
 		};
 
 		fetchMessages();
-	}, [bookingId]);
+	}, [booking.id]);
 
 	const saveMessagesToRedis = async (updatedMessages: Message[]) => {
 		try {
-			await redis.set(`whiteboard-messages-${bookingId}`, updatedMessages);
+			await redis.set(`whiteboard-messages-${booking.id}`, updatedMessages);
 		} catch (error) {
 			console.error("Error saving messages to Redis:", error);
 		}
@@ -64,12 +86,11 @@ export const Chat = ({ bookingId }: { bookingId: string }) => {
 
 		const updatedMessages = [...messages, userMessage, assistantMessage];
 		setMessages(updatedMessages);
-		
 
 		try {
 			const encodedMessage = encodeURIComponent(message);
 			const eventSource = new EventSource(
-				`/api/stream?userMessage=${encodedMessage}&bookingId=${bookingId}`,
+				`/api/stream?userMessage=${encodedMessage}&bookingId=${booking.id}`,
 			);
 
 			eventSource.onmessage = (event) => {
@@ -98,6 +119,7 @@ export const Chat = ({ bookingId }: { bookingId: string }) => {
 					});
 
 					saveMessagesToRedis(updatedMessages);
+					setIsLoading(false);
 					return updatedMessages;
 				});
 
@@ -123,9 +145,9 @@ export const Chat = ({ bookingId }: { bookingId: string }) => {
 					});
 
 					saveMessagesToRedis(updatedMessages);
+					setIsLoading(false);
 					return updatedMessages;
 				});
-				setIsLoading(false);
 			};
 
 			setMessage("");
@@ -144,15 +166,18 @@ export const Chat = ({ bookingId }: { bookingId: string }) => {
 				});
 
 				saveMessagesToRedis(updatedMessages);
+				setIsLoading(false);
 				return updatedMessages;
 			});
-			setIsLoading(false);
 		}
 	};
 
 	return (
 		<div className="w-1/3 border-l border-l-sidebar-border bg-sidebar shadow-sidebar shadow-lg flex flex-col px-3 py-1">
-			<div className="flex-1 flex flex-col gap-2 p-3 max-h-[calc(100vh-2rem)] overflow-y-auto">
+			<div
+				className="flex-1 flex flex-col gap-2 p-3 max-h-[calc(100vh-2rem)] overflow-y-auto"
+				ref={scrollRef}
+			>
 				{messages.map((msg) => (
 					<ChatBubble key={msg.id} variant={msg.type}>
 						<ChatBubbleAvatar

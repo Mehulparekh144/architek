@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import type { Message } from "@/types/redisData";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { streamAIResponse } from "@/lib/openai";
 
 const headers = {
   'Content-Type': 'text/event-stream',
@@ -29,8 +30,8 @@ async function generateStreamResponse(userMessage: string | null, bookingId: str
     });
   }
 
-  const redisMessages = (await redis.get(`whiteboard-messages-${bookingId}`)) as Message[];
-  const messages = [...redisMessages, { type: 'sent', message: userMessage, thinking: false, id: crypto.randomUUID() }];
+  const redisMessages = (await redis.get(`whiteboard-messages-${bookingId}`)) as Message[] || [];
+  const messages = [...redisMessages, { type: 'sent' as const, message: userMessage, thinking: false, id: crypto.randomUUID() }];
 
   return new ReadableStream({
     async start(controller: ReadableStreamController<Uint8Array>) {
@@ -40,21 +41,39 @@ async function generateStreamResponse(userMessage: string | null, bookingId: str
 
       sendEvent({ type: 'thinking', message: 'Thinking...' });
 
-      // TODO : Call the LLM
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      try {
+        // Get the streaming response from OpenAI
+        const stream = await streamAIResponse(messages);
 
-      const response = `Hello, how can I help you today with booking ${bookingId}? ${messages[messages.length - 1]?.message}`;
-      let currentResponse = '';
+        let currentResponse = '';
 
-      for (const char of response) {
-        currentResponse += char;
-        sendEvent({ type: 'chunk', message: currentResponse });
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        // Process the stream
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          if (content) {
+            currentResponse += content;
+            sendEvent({ type: 'chunk', message: currentResponse });
+          }
+        }
+
+        // Store the AI response in Redis
+        if (currentResponse) {
+          const aiResponseMessage = {
+            type: 'received' as const,
+            message: currentResponse,
+            thinking: false,
+            id: crypto.randomUUID()
+          };
+          await redis.set(`whiteboard-messages-${bookingId}`, [...messages, aiResponseMessage]);
+
+          sendEvent({ type: 'done', message: currentResponse });
+        }
+      } catch (error) {
+        console.error("Error streaming response:", error);
+        sendEvent({ type: 'error', message: 'Failed to generate response' });
+      } finally {
+        controller.close();
       }
-
-      sendEvent({ type: 'done', message: currentResponse });
-
-      controller.close();
     }
   });
 }

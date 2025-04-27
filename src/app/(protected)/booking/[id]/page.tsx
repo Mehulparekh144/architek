@@ -22,7 +22,7 @@ export default async function DrawPage({
 	return (
 		<section className="h-screen w-screen flex">
 			<Whiteboard bookingId={id} />
-			<Chat bookingId={id} />
+			<Chat booking={booking} />
 		</section>
 	);
 }
