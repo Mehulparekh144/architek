@@ -1,23 +1,26 @@
 "use client";
-import { SendHorizonal } from "lucide-react";
 import {
 	ChatBubble,
 	ChatBubbleAvatar,
 	ChatBubbleMessage,
 } from "@/components/ui/chat-bubble";
 import { useEffect, useRef, useState } from "react";
-import { LoadingButton } from "@/components/loading-button";
-import { Textarea } from "@/components/ui/textarea";
 import { redis } from "@/lib/redis";
 import type { Message } from "@/types/redisData";
 import type { Booking } from "@prisma/client";
+import { useChanges } from "@/hooks/use-changes";
+import { convertChangesToAIFriendly } from "@/lib/openai";
+import { ShineBorder } from "@/components/magicui/shine-border";
+import { WandSparklesIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { marked } from "marked";
 
 export const Chat = ({ booking }: { booking: Booking }) => {
 	const [messages, setMessages] = useState<Message[]>([]);
-	const [message, setMessage] = useState<string>(
-		`Hi, You are here to interview me for this question : ${booking.topic}. Please keep in mind these additional areas where I want to focus on : ${booking.additionalInfo}`,
-	);
-	const [isLoading, setIsLoading] = useState<boolean>(false);
+	const { changes, setChanges } = useChanges();
+	const [isAIConvertingMessage, setIsAIConvertingMessage] =
+		useState<boolean>(false);
+	const [generatedMessage, setGeneratedMessage] = useState<string>("");
 	const scrollRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -63,14 +66,27 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 		}
 	};
 
-	const handleSendMessage = async () => {
-		if (!message) return;
+	useEffect(() => {
+		if (changes) {
+			handleSendMessage();
+		}
+	}, [changes]);
 
-		setIsLoading(true);
+	const handleSendMessage = async () => {
+		if (!changes) return;
+
+		const response = await convertChangesToAIFriendly(changes);
+		let generatedMessage = "";
+		setIsAIConvertingMessage(true);
+		for await (const chunk of response) {
+			generatedMessage += chunk?.choices[0]?.delta.content;
+			setGeneratedMessage(generatedMessage);
+		}
+		setIsAIConvertingMessage(false);
 
 		const userMessage: Message = {
 			type: "sent",
-			message,
+			message: generatedMessage,
 			thinking: false,
 			id: crypto.randomUUID(),
 		};
@@ -88,7 +104,7 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 		setMessages(updatedMessages);
 
 		try {
-			const encodedMessage = encodeURIComponent(message);
+			const encodedMessage = encodeURIComponent(changes);
 			const eventSource = new EventSource(
 				`/api/stream?userMessage=${encodedMessage}&bookingId=${booking.id}`,
 			);
@@ -119,13 +135,11 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 					});
 
 					saveMessagesToRedis(updatedMessages);
-					setIsLoading(false);
 					return updatedMessages;
 				});
 
 				if (data.type === "done" || data.type === "error") {
 					eventSource.close();
-					setIsLoading(false);
 				}
 			};
 
@@ -145,12 +159,11 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 					});
 
 					saveMessagesToRedis(updatedMessages);
-					setIsLoading(false);
 					return updatedMessages;
 				});
 			};
 
-			setMessage("");
+			setChanges("");
 		} catch (error) {
 			console.error("Error sending message:", error);
 			setMessages((prev) => {
@@ -166,7 +179,6 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 				});
 
 				saveMessagesToRedis(updatedMessages);
-				setIsLoading(false);
 				return updatedMessages;
 			});
 		}
@@ -189,31 +201,26 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 						/>
 						<ChatBubbleMessage isLoading={msg.thinking} variant={msg.type}>
 							{/* biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation> */}
-							<div dangerouslySetInnerHTML={{ __html: msg.message }} />
+							<div dangerouslySetInnerHTML={{ __html: marked(msg.message) }} />
 						</ChatBubbleMessage>
 					</ChatBubble>
 				))}
 			</div>
-			<div className="flex items-center gap-2 mb-3">
-				<Textarea
-					rows={3}
-					placeholder="Type your message here..."
-					onKeyDown={(e) => {
-						if (e.key === "Enter") {
-							handleSendMessage();
-						}
-					}}
-					value={message}
-					onChange={(e) => setMessage(e.target.value)}
-				/>
-				<LoadingButton
-					disabled={message.trim() === "" || isLoading}
-					loading={isLoading}
-					size={"icon"}
-					onClick={handleSendMessage}
-				>
-					<SendHorizonal />
-				</LoadingButton>
+			<div className="flex relative overflow-hidden items-center bg-secondary rounded-md px-2 py-4 gap-2 mb-6">
+				{isAIConvertingMessage && (
+					<ShineBorder shineColor={"purple"} borderWidth={2} />
+				)}
+				<p className="text-sm text-muted-foreground flex items-center">
+					<WandSparklesIcon
+						className={cn(
+							"w-4 h-4 mr-2",
+							isAIConvertingMessage && "animate-pulse",
+						)}
+					/>
+					{generatedMessage.length > 0
+						? generatedMessage
+						: "AI will be recording your changes and asking questions about it."}
+				</p>
 			</div>
 		</div>
 	);

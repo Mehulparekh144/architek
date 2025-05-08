@@ -6,6 +6,7 @@ import "tldraw/tldraw.css";
 import { diffWordsWithSpace } from "diff";
 import { redis } from "@/lib/redis";
 import type { Shape } from "@/types/redisData";
+import { useChanges } from "@/hooks/use-changes";
 
 export const Whiteboard = ({ bookingId }: { bookingId: string }) => {
 	return (
@@ -26,6 +27,7 @@ export const Whiteboard = ({ bookingId }: { bookingId: string }) => {
 
 const TLDrawContext = ({ bookingId }: { bookingId: string }) => {
 	const editor = useEditor();
+	const { setChanges } = useChanges();
 	const previousTextRef = useRef<string>("");
 	const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const [shapes, setShapes] = useState<Shape[]>([]);
@@ -83,24 +85,26 @@ const TLDrawContext = ({ bookingId }: { bookingId: string }) => {
 
 				const changes = getDiff(currentText, previousText);
 				if (changes) {
-					//TODO - Send changes to the server
 					console.log("changes", changes);
+					setChanges(changes);
 				}
 
 				previousTextRef.current = currentText;
 				redis.set(`whiteboard-shapes-${bookingId}`, shapesWithText);
-			}, 700);
+			}, 700); // 700ms debounce
 		};
 
+		// Listen to store changes with debounce
 		const unsubscribe = editor.store.listen(handleChange);
 
+		// Cleanup
 		return () => {
 			unsubscribe();
 			if (debounceTimeoutRef.current) {
 				clearTimeout(debounceTimeoutRef.current);
 			}
 		};
-	}, [editor, bookingId]);
+	}, [editor, bookingId, setChanges]);
 
 	return (
 		<Button

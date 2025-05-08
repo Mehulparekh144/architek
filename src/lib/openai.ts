@@ -7,8 +7,9 @@ const MODEL = "meta-llama/llama-4-maverick:free";
 
 // Create OpenAI client
 const openai = new OpenAI({
-  apiKey: env.OPENROUTER_API_KEY,
+  apiKey: env.NEXT_PUBLIC_OPENROUTER_API_KEY,
   baseURL: "https://openrouter.ai/api/v1",
+  dangerouslyAllowBrowser: true,
 });
 
 // System prompt content
@@ -111,5 +112,41 @@ export async function streamAIResponse(messages: Message[]) {
 }
 
 
+export async function convertChangesToAIFriendly(changes : string) {
+  
+  const messages = [
+    {
+      role: "system",
+      content: `You are a helpful AI assistant that converts the user changes made to the whiteboard to 
+      a more friendly and concise format for an interviewer to ask questions about.
+      You'll be given changes made by user and convert it to ai friendly format.
+      Accept simple responses like yes/no or agreements without trying to expand them.
+      DONOT add any extra text or explanations. DONOT give your own opinions.
+      e.g. 
+      changes:  "Load Balancer added",
+      formatted: "The user added a Load Balancer to the whiteboard."
+
+      changes: "Yes, I agree added",
+      formatted: "The user agreed with the previous point."
+
+      changes: "No, that won't work added",
+      formatted: "The user disagreed with the previous point."
+      `
+    },
+    {
+      role: "user",
+      content: `Changes: ${changes}`
+    }
+  ]
+  
+  const response = await openai.chat.completions.create({
+    model : MODEL,
+    messages: messages as ChatCompletionMessageParam[],
+    stream: true,
+    temperature: 0.8
+  })
+
+  return response;
+}
 
 
