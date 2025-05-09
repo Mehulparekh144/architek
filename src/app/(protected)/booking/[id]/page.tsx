@@ -3,7 +3,6 @@ import { Whiteboard } from "./whiteboard";
 import { Chat } from "./chat";
 import { db } from "@/server/db";
 import { redirect } from "next/navigation";
-import { ChangesProvider } from "@/hooks/use-changes";
 
 export default async function DrawPage({
 	params,
@@ -21,11 +20,9 @@ export default async function DrawPage({
 	}
 
 	return (
-		<ChangesProvider>
 			<section className="h-screen w-screen flex">
 				<Whiteboard bookingId={id} />
 				<Chat booking={booking} />
 			</section>
-		</ChangesProvider>
 	);
 }

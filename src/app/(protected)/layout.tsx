@@ -1,3 +1,4 @@
+import { ChangesProvider } from "@/hooks/use-changes";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -8,11 +9,11 @@ export default async function ProtectedLayout({
 	children: React.ReactNode;
 }) {
 	const session = await auth.api.getSession({
-    headers : await headers()
-  })
+		headers: await headers(),
+	});
 
 	if (!session) {
 		redirect("/");
 	}
-	return <>{children}</>;
+	return <ChangesProvider>{children}</ChangesProvider>;
 }

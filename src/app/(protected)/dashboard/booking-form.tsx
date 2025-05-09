@@ -23,7 +23,12 @@ import { toast } from "sonner";
 import { bookSession } from "./actions";
 import { useState } from "react";
 import { LoadingButton } from "@/components/loading-button";
+import { useRouter } from "next/navigation";
+import { useChanges } from "@/hooks/use-changes";
+
 export const BookingForm = () => {
+	const router = useRouter();
+	const { setChanges } = useChanges();
 	const [isLoading, setIsLoading] = useState(false);
 	const form = useForm<BookingSchema>({
 		resolver: zodResolver(bookingSchema),
@@ -37,9 +42,16 @@ export const BookingForm = () => {
 	const handleBooking = async (data: BookingSchema) => {
 		try {
 			setIsLoading(true);
-			await bookSession(data);
+			const booking = await bookSession(data);
+			setChanges({
+				content: `Please start the interview for the topic ${data.topic}. Start with the basic questions and then move on to the more complex ones.
+						${data.additionalInfo ? `Here are some additional info user would like to get grilled: ${data.additionalInfo}` : ""}. 
+						The interview should be conducted in ${data.difficulty} difficulty.`,
+				needsAI: false,
+			});
 			toast.success("Session booked successfully");
 			form.reset();
+			router.push(`/booking/${booking.id}`);
 		} catch (_error) {
 			toast.error("Something went wrong");
 		} finally {

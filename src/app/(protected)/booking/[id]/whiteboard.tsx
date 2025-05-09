@@ -86,7 +86,10 @@ const TLDrawContext = ({ bookingId }: { bookingId: string }) => {
 				const changes = getDiff(currentText, previousText);
 				if (changes) {
 					console.log("changes", changes);
-					setChanges(changes);
+					setChanges({
+						content: changes,
+						needsAI: true,
+					});
 				}
 
 				previousTextRef.current = currentText;

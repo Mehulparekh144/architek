@@ -11,6 +11,7 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "@/server/db";
+import { auth } from "@/lib/auth";
 
 /**
  * 1. CONTEXT
@@ -24,7 +25,7 @@ import { db } from "@/server/db";
  *
  * @see https://trpc.io/docs/server/context
  */
-export const createTRPCContext = async (opts: { headers: Headers }) => {
+export const createTRPCContext = (opts: { headers: Headers }) => {
 	return {
 		db,
 		...opts,
@@ -97,6 +98,26 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 });
 
 /**
+ * Auth middleware to protect routes
+ */
+const authMiddleware = t.middleware(async ({ next, ctx }) => {
+	const session = await auth.api.getSession({
+		headers: ctx.headers,
+	});
+
+	if (!session) {
+		throw new Error("Not authenticated");
+	}
+
+	return next({
+		ctx: {
+			...ctx,
+			session,
+		},
+	});
+});
+
+/**
  * Public (unauthenticated) procedure
  *
  * This is the base piece you use to build new queries and mutations on your tRPC API. It does not
@@ -104,3 +125,11 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+
+/**
+ * Protected (authenticated) procedure
+ *
+ * This is the base piece you use to build new queries and mutations on your tRPC API that require
+ * authentication. It verifies the session is valid and guarantees `ctx.session` is not null.
+ */
+export const protectedProcedure = t.procedure.use(authMiddleware).use(timingMiddleware);

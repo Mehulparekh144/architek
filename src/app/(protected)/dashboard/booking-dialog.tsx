@@ -7,16 +7,13 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { MoveRightIcon } from "lucide-react";
 import { BookingForm } from "./booking-form";
 
 export const BookingDialog = () => {
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<Button>
-					Book a session <MoveRightIcon />
-				</Button>
+				<Button variant={"outline"}>Book a session</Button>
 			</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>

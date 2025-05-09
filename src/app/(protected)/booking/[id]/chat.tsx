@@ -5,10 +5,10 @@ import {
 	ChatBubbleMessage,
 } from "@/components/ui/chat-bubble";
 import { useEffect, useRef, useState } from "react";
-import { redis } from "@/lib/redis";
+import { redis, saveMessagesToRedis } from "@/lib/redis";
 import type { Message } from "@/types/redisData";
 import type { Booking } from "@prisma/client";
-import { useChanges } from "@/hooks/use-changes";
+import { useChanges, type Changes } from "@/hooks/use-changes";
 import { convertChangesToAIFriendly } from "@/lib/openai";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { WandSparklesIcon } from "lucide-react";
@@ -58,31 +58,27 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 		fetchMessages();
 	}, [booking.id]);
 
-	const saveMessagesToRedis = async (updatedMessages: Message[]) => {
-		try {
-			await redis.set(`whiteboard-messages-${booking.id}`, updatedMessages);
-		} catch (error) {
-			console.error("Error saving messages to Redis:", error);
-		}
-	};
-
 	useEffect(() => {
-		if (changes) {
-			handleSendMessage();
+		if (changes.content) {
+			handleSendMessage({ changes });
 		}
 	}, [changes]);
 
-	const handleSendMessage = async () => {
+	const handleSendMessage = async ({ changes }: { changes: Changes }) => {
 		if (!changes) return;
 
-		const response = await convertChangesToAIFriendly(changes);
-		let generatedMessage = "";
-		setIsAIConvertingMessage(true);
-		for await (const chunk of response) {
-			generatedMessage += chunk?.choices[0]?.delta.content;
+		let generatedMessage = changes.content;
+
+		if (changes.needsAI) {
+			const response = await convertChangesToAIFriendly(changes.content);
+			generatedMessage = "";
+			setIsAIConvertingMessage(true);
+			for await (const chunk of response) {
+				generatedMessage += chunk?.choices[0]?.delta.content;
+			}
 			setGeneratedMessage(generatedMessage);
+			setIsAIConvertingMessage(false);
 		}
-		setIsAIConvertingMessage(false);
 
 		const userMessage: Message = {
 			type: "sent",
@@ -104,7 +100,7 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 		setMessages(updatedMessages);
 
 		try {
-			const encodedMessage = encodeURIComponent(changes);
+			const encodedMessage = encodeURIComponent(generatedMessage);
 			const eventSource = new EventSource(
 				`/api/stream?userMessage=${encodedMessage}&bookingId=${booking.id}`,
 			);
@@ -134,7 +130,10 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 						return msg;
 					});
 
-					saveMessagesToRedis(updatedMessages);
+					saveMessagesToRedis({
+						messages: updatedMessages,
+						bookingId: booking.id,
+					});
 					return updatedMessages;
 				});
 
@@ -158,12 +157,18 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 						return msg;
 					});
 
-					saveMessagesToRedis(updatedMessages);
+					saveMessagesToRedis({
+						messages: updatedMessages,
+						bookingId: booking.id,
+					});
 					return updatedMessages;
 				});
 			};
 
-			setChanges("");
+			setChanges({
+				content: "",
+				needsAI: false,
+			});
 		} catch (error) {
 			console.error("Error sending message:", error);
 			setMessages((prev) => {
@@ -178,7 +183,10 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 					return msg;
 				});
 
-				saveMessagesToRedis(updatedMessages);
+				saveMessagesToRedis({
+					messages: updatedMessages,
+					bookingId: booking.id,
+				});
 				return updatedMessages;
 			});
 		}
