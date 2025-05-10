@@ -5,6 +5,7 @@ export const bookingRouter = createTRPCRouter({
 		const bookings = await ctx.db.booking.findMany({
 			where: {
 				userId: ctx.session.user.id,
+				inProgress: true,
 			},
 			orderBy: {
 				createdAt: "desc",

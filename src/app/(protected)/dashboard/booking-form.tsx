@@ -24,11 +24,11 @@ import { bookSession } from "./actions";
 import { useState } from "react";
 import { LoadingButton } from "@/components/loading-button";
 import { useRouter } from "next/navigation";
-import { useChanges } from "@/hooks/use-changes";
+import { useUserSelection } from "@/hooks/use-changes";
 
 export const BookingForm = () => {
 	const router = useRouter();
-	const { setChanges } = useChanges();
+	const { setUserSelection: setChanges } = useUserSelection();
 	const [isLoading, setIsLoading] = useState(false);
 	const form = useForm<BookingSchema>({
 		resolver: zodResolver(bookingSchema),

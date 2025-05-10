@@ -2,34 +2,34 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-export type Changes = {
+export type UserSelection = {
 	content: string;
 	needsAI: boolean;
 };
 
-interface ChangesContextType {
-	changes: Changes;
-	setChanges: (changes: Changes) => void;
+interface UserChangesContext {
+	userSelection: UserSelection;
+	setUserSelection: (userSelection: UserSelection) => void;
 }
 
-const ChangesContext = createContext<ChangesContextType | undefined>(undefined);
+const ChangesContext = createContext<UserChangesContext | undefined>(undefined);
 
 export function ChangesProvider({ children }: { children: ReactNode }) {
-	const [changes, setChanges] = useState<Changes>({
+	const [userSelection, setUserSelection] = useState<UserSelection>({
 		content: "",
 		needsAI: false,
 	});
 	return (
-		<ChangesContext.Provider value={{ changes, setChanges }}>
+		<ChangesContext.Provider value={{ userSelection, setUserSelection }}>
 			{children}
 		</ChangesContext.Provider>
 	);
 }
 
-export function useChanges() {
+export function useUserSelection() {
 	const context = useContext(ChangesContext);
 	if (!context) {
-		throw new Error("useChanges must be used within a ChangesProvider");
+		throw new Error("useUserSelection must be used within a ChangesProvider");
 	}
 	return context;
 }

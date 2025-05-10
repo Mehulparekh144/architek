@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { redis, saveMessagesToRedis } from "@/lib/redis";
 import type { Message } from "@/types/redisData";
 import type { Booking } from "@prisma/client";
-import { useChanges, type Changes } from "@/hooks/use-changes";
+import { useUserSelection, type UserSelection } from "@/hooks/use-changes";
 import { convertChangesToAIFriendly } from "@/lib/openai";
 import { ShineBorder } from "@/components/magicui/shine-border";
 import { WandSparklesIcon } from "lucide-react";
@@ -17,7 +17,8 @@ import { marked } from "marked";
 
 export const Chat = ({ booking }: { booking: Booking }) => {
 	const [messages, setMessages] = useState<Message[]>([]);
-	const { changes, setChanges } = useChanges();
+	const { userSelection: changes, setUserSelection: setChanges } =
+		useUserSelection();
 	const [isAIConvertingMessage, setIsAIConvertingMessage] =
 		useState<boolean>(false);
 	const [generatedMessage, setGeneratedMessage] = useState<string>("");
@@ -64,7 +65,7 @@ export const Chat = ({ booking }: { booking: Booking }) => {
 		}
 	}, [changes]);
 
-	const handleSendMessage = async ({ changes }: { changes: Changes }) => {
+	const handleSendMessage = async ({ changes }: { changes: UserSelection }) => {
 		if (!changes) return;
 
 		let generatedMessage = changes.content;

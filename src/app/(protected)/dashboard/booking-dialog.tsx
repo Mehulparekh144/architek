@@ -8,12 +8,15 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { BookingForm } from "./booking-form";
+import { cn } from "@/lib/utils";
 
-export const BookingDialog = () => {
+export const BookingDialog = ({ className }: { className?: string }) => {
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<Button variant={"outline"}>Book a session</Button>
+				<Button className={cn(className, "text-base")} size={"lg"}>
+					Book a session
+				</Button>
 			</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>
