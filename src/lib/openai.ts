@@ -1,15 +1,15 @@
-import { env } from '@/env';
-import OpenAI from 'openai';
-import type { Message } from '@/types/redisData';
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions.mjs';
+import { env } from "@/env";
+import OpenAI from "openai";
+import type { Message } from "@/types/redisData";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.mjs";
 
 const MODEL = "meta-llama/llama-4-maverick:free";
 
 // Create OpenAI client
 const openai = new OpenAI({
-  apiKey: env.NEXT_PUBLIC_OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
-  dangerouslyAllowBrowser: true,
+	apiKey: env.NEXT_PUBLIC_OPENROUTER_API_KEY,
+	baseURL: "https://openrouter.ai/api/v1",
+	dangerouslyAllowBrowser: true,
 });
 
 // System prompt content
@@ -83,45 +83,43 @@ YOU (INCORRECT): "Good approach. Caching will definitely help with read performa
 
 // Function to stream AI responses
 export async function streamAIResponse(messages: Message[]) {
-  try {
-    // Format messages for OpenAI
-    const formattedMessages = [];
+	try {
+		// Format messages for OpenAI
+		const formattedMessages = [];
 
-    // Add system message
-    formattedMessages.push({
-      role: "system",
-      content: systemPrompt
-    });
+		// Add system message
+		formattedMessages.push({
+			role: "system",
+			content: systemPrompt,
+		});
 
-    // Add conversation history
-    messages.forEach((msg) => {
-      formattedMessages.push({
-        role: msg.type === 'sent' ? 'user' : 'assistant',
-        content: msg.message
-      });
-    });
+		// Add conversation history
+		messages.forEach((msg) => {
+			formattedMessages.push({
+				role: msg.type === "sent" ? "user" : "assistant",
+				content: msg.message,
+			});
+		});
 
-    const response = await openai.chat.completions.create({
-      model: MODEL,
-      messages: formattedMessages as ChatCompletionMessageParam[],
-      stream: true,
-      temperature: 0.8,
-    });
+		const response = await openai.chat.completions.create({
+			model: MODEL,
+			messages: formattedMessages as ChatCompletionMessageParam[],
+			stream: true,
+			temperature: 0.8,
+		});
 
-    return response;
-  } catch (error) {
-    console.error("Error calling OpenAI:", error);
-    throw error;
-  }
+		return response;
+	} catch (error) {
+		console.error("Error calling OpenAI:", error);
+		throw error;
+	}
 }
 
-
-export async function convertChangesToAIFriendly(changes : string) {
-  
-  const messages = [
-    {
-      role: "system",
-      content: `You are a helpful AI assistant that converts the user changes made to the whiteboard to 
+export async function convertChangesToAIFriendly(changes: string) {
+	const messages = [
+		{
+			role: "system",
+			content: `You are a helpful AI assistant that converts the user changes made to the whiteboard to 
       a more friendly and concise format for an interviewer to ask questions about.
       You'll be given changes made by user and convert it to ai friendly format.
       Accept simple responses like yes/no or agreements without trying to expand them.
@@ -135,22 +133,91 @@ export async function convertChangesToAIFriendly(changes : string) {
 
       changes: "No, that won't work added",
       formatted: "The user disagreed with the previous point."e
-      `
-    },
-    {
-      role: "user",
-      content: `Changes: ${changes}`
-    }
-  ]
-  
-  const response = await openai.chat.completions.create({
-    model : MODEL,
-    messages: messages as ChatCompletionMessageParam[],
-    stream: true,
-    temperature: 0.8
-  })
+      `,
+		},
+		{
+			role: "user",
+			content: `Changes: ${changes}`,
+		},
+	];
 
-  return response;
+	const response = await openai.chat.completions.create({
+		model: MODEL,
+		messages: messages as ChatCompletionMessageParam[],
+		stream: true,
+		temperature: 0.8,
+	});
+
+	return response;
 }
 
+export async function getFeedback(conversation: Message[]) {
+	const messages = [
+		{
+			role: "system",
+			content: `You are a System Design Interview Feedback AI. Your task is to analyze the conversation between the interviewer (AI) and the candidate (human) and provide structured feedback.
 
+Your response must be a valid JSON object with the following structure:
+{
+  "improvements": [
+    {
+      "area": "string - specific area that needs improvement",
+      "description": "string - detailed explanation of what needs to be improved",
+      "example": "string - specific example from the conversation"
+    }
+  ],
+  "strengths": [
+    {
+      "area": "string - specific area that was done well",
+      "description": "string - detailed explanation of what was done well",
+      "example": "string - specific example from the conversation"
+    }
+  ],
+  "explanation_opportunities": [
+    {
+      "topic": "string - topic that could have been explained more",
+      "suggestion": "string - how it could have been explained better"
+    }
+  ],
+  "learning_topics": 
+    {
+     "tags": ["string - array of relevant tags like 'scalability', 'databases', 'caching', 'networking', 'security', 'load-balancing', 'distributed-systems', 'microservices', 'api-design', 'data-modeling', 'system-architecture', 'performance-optimization', 'fault-tolerance', 'consistency', 'availability', 'partition-tolerance', 'monitoring', 'logging', 'deployment', 'containerization', 'orchestration', 'message-queues', 'event-driven', 'real-time-processing', 'data-pipelines', 'search', 'recommendation-systems', 'authentication', 'authorization', 'rate-limiting', 'caching-strategies', 'database-sharding', 'replication', 'backup-strategies', 'disaster-recovery', 'system-design-patterns', 'trade-offs', 'technical-decision-making']"
+    }
+  ,
+  "scoring": {
+    "overall_score": "number between 0-10",
+    "component_scores": {
+      "system_architecture": "number between 0-10",
+      "scalability": "number between 0-10",
+      "reliability": "number between 0-10",
+      "data_modeling": "number between 0-10",
+      "communication": "number between 0-10"
+    },
+    "score_explanation": "string - brief explanation of the scoring"
+  }
+}
+
+Guidelines for feedback:
+1. Be specific and actionable in your feedback
+2. Use concrete examples from the conversation
+3. Focus on both technical and communication aspects
+4. For learning topics, provide relevant tags that categorize the areas needing improvement
+5. Score fairly based on demonstrated knowledge and communication
+6. Ensure all JSON fields are properly filled
+7. Do not include any text outside the JSON structure`,
+		},
+		{
+			role: "user",
+			content: `conversation: ${JSON.stringify(conversation)}`,
+		},
+	];
+
+	const response = await openai.chat.completions.create({
+		model: MODEL,
+		messages: messages as ChatCompletionMessageParam[],
+		temperature: 0.7,
+		response_format: { type: "json_object" },
+	});
+
+	return JSON.parse(response.choices[0]?.message.content || "{}");
+}

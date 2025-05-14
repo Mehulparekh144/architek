@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 interface LoadingButtonProps
 	extends React.ComponentProps<"button">,
 		VariantProps<typeof buttonVariants> {
-	loading?: boolean;
+	loading: boolean;
 	hideChildren?: boolean;
 }
 

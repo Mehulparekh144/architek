@@ -4,6 +4,10 @@ import { Tldraw, useEditor } from "tldraw";
 import "tldraw/tldraw.css";
 import { Button } from "@/components/ui/button";
 import { useUserSelection } from "@/hooks/use-changes";
+import { api } from "@/trpc/react";
+import { LoadingButton } from "@/components/loading-button";
+import { toast } from "sonner";
+import { uploadFile } from "@/lib/s3";
 
 function CustomContextMenu() {
 	const editor = useEditor();
@@ -121,9 +125,12 @@ function CustomContextMenu() {
 	);
 }
 
-export const Whiteboard = ({ bookingId }: { bookingId: string }) => {
+export const Whiteboard = ({
+	bookingId,
+	userId,
+}: { bookingId: string; userId: string }) => {
 	return (
-		<div className="w-full h-full">
+		<div className="w-full h-full relative">
 			<Tldraw
 				inferDarkMode
 				components={{
@@ -132,7 +139,64 @@ export const Whiteboard = ({ bookingId }: { bookingId: string }) => {
 					ZoomMenu: null,
 				}}
 				persistenceKey={`tldraw-whiteboard-${bookingId}`}
-			/>
+			>
+				<TLDrawContext bookingId={bookingId} userId={userId} />
+			</Tldraw>
 		</div>
 	);
 };
+
+function TLDrawContext({
+	bookingId,
+	userId,
+}: { bookingId: string; userId: string }) {
+	const [isLoading, setIsLoading] = useState(false);
+	const editor = useEditor();
+
+	const endSessionMutation = api.booking.endSession.useMutation();
+
+	const handleEndSession = async () => {
+		setIsLoading(true);
+		const { blob } = await editor.toImage(editor.getCurrentPageShapes());
+		const whiteboardKey = await uploadFile({
+			file: blob,
+			bookingId,
+			userId,
+		});
+		endSessionMutation.mutateAsync(
+			{
+				bookingId,
+				whiteboardKey,
+			},
+			{
+				onSettled: () => {
+					setIsLoading(false);
+				},
+				onError: () => {
+					toast.error("Failed to end session", {
+						description: "Please try again later",
+					});
+				},
+				onSuccess: () => {
+					toast.success("Session ended successfully", {
+						description: "You can now close this tab",
+					});
+					window.location.href = "/dashboard";
+				},
+			},
+		);
+	};
+
+	return (
+		<>
+			<LoadingButton
+				onClick={handleEndSession}
+				className="absolute top-4 left-4"
+				variant={"outline"}
+				loading={isLoading}
+			>
+				End Session
+			</LoadingButton>
+		</>
+	);
+}

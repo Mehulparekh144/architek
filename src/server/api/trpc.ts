@@ -12,6 +12,7 @@ import { ZodError } from "zod";
 
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
+import { redis } from "@/lib/redis";
 
 /**
  * 1. CONTEXT
@@ -28,6 +29,7 @@ import { auth } from "@/lib/auth";
 export const createTRPCContext = (opts: { headers: Headers }) => {
 	return {
 		db,
+		redis,
 		...opts,
 	};
 };

@@ -98,6 +98,46 @@ model Booking {
   topic          String
   additionalInfo String?
   difficulty     Difficulty
+  feedback       Feedback[]
+  whiteboardKey  String?
+  messages       Message[]
 
   @@map("booking")
+}
+
+model Feedback {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  improvements             Json[]
+  strengths                Json[]
+  explanationOpportunities Json[]
+  learningTopics           Json
+  scoring                  Json
+
+  @@map("feedback")
+}
+
+enum MessageType {
+  SENT
+  RECEIVED
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  type     MessageType
+  message  String
+  thinking Boolean
+
+  @@map("message")
 }
